@@ -2,6 +2,8 @@ github.com/davecgh/go-spew v1.1.0 h1:ZDRjVQ15GmhC3fiQ8ni8+OwkZQO4DARzQgrnXU1Liz8
 github.com/davecgh/go-spew v1.1.0/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/golang/mock v1.5.0 h1:jlYHihg//f7RRwuPfptm04yp4s7O6Kw8EZiVYIGcH0g=
 github.com/golang/mock v1.5.0/go.mod h1:CWnOUgYIOo4TcNZ0wHX3YZCqsaM1I1Jvs6v3mP3KVu8=
+github.com/opensvc/locker v0.0.1 h1:LC2B8NF5jwAUynQvBOC0zMWCnOCE31hD3lwa//04CAM=
+github.com/opensvc/locker v0.0.1/go.mod h1:EGM9u/OLJjie1vkNTaTlgj80+PpaH2zBUK/iPPOMCjY=
 github.com/opensvc/testhelper v0.0.2 h1:RjajedHeA7cew1tfYGxytJklNpDoiV34KIqwl0qKW8k=
 github.com/opensvc/testhelper v0.0.2/go.mod h1:fUJRZPmQs6iu4/gDlU8oTuTH7+c8vJ3uVOljkR6anL0=
 github.com/pmezard/go-difflib v1.0.0 h1:4DBwDE0NGyQoBHbLQYPwSUPoCMWR5BEzIk/f1lZbAQM=

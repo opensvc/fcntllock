@@ -4,6 +4,7 @@ package fcntllock
 
 import (
 	"context"
+	"github.com/opensvc/locker"
 	"io"
 	"os"
 	"syscall"
@@ -12,13 +13,6 @@ import (
 
 type (
 	ReadWriteSeekCloser interface {
-		io.ReadWriteSeeker
-		io.Closer
-	}
-
-	Locker interface {
-		LockContext(context.Context, time.Duration) error
-		UnLock() error
 		io.ReadWriteSeeker
 		io.Closer
 	}
@@ -32,7 +26,7 @@ type (
 )
 
 // New create a new fcntl lock
-func New(path string) Locker {
+func New(path string) locker.Locker {
 	return &Lock{
 		path: path,
 	}
