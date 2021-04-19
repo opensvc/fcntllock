@@ -1,7 +1,5 @@
 package fcntllock
 
-//go:generate mockgen -source=main.go -destination=./mock_fnctllock/main.go
-
 import (
 	"context"
 	"github.com/opensvc/locker"
@@ -12,6 +10,8 @@ import (
 )
 
 type (
+	Locker = locker.Locker
+
 	ReadWriteSeekCloser interface {
 		io.ReadWriteSeeker
 		io.Closer
@@ -26,7 +26,7 @@ type (
 )
 
 // New create a new fcntl lock
-func New(path string) locker.Locker {
+func New(path string) Locker {
 	return &Lock{
 		path: path,
 	}
