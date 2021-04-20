@@ -23,15 +23,25 @@ func TestLock(t *testing.T) {
 		assert.Nil(t, err)
 	})
 
-	t.Run("lock fail if lock dir doesn't exists", func(t *testing.T) {
+	t.Run("lock create missing lock dir", func(t *testing.T) {
 		lockDir, cleanup := testhelper.Tempdir(t)
 		defer cleanup()
 		l := fcntllock.New(filepath.Join(lockDir, "dir", "lck"))
 		ctx, cancel := context.WithTimeout(context.Background(), 20*time.Millisecond)
 		defer cancel()
 		err := l.LockContext(ctx, 5*time.Millisecond)
+		assert.Nil(t, err)
+	})
+
+	t.Run("fail fast if can't create lock dir", func(t *testing.T) {
+		tf, cleanup := testhelper.TempFile(t)
+		defer cleanup()
+		l := fcntllock.New(filepath.Join(tf, "dir", "lck"))
+		ctx, cancel := context.WithTimeout(context.Background(), 20*time.Millisecond)
+		defer cancel()
+		err := l.LockContext(ctx, 5*time.Millisecond)
 		assert.NotNil(t, err)
-		assert.Equal(t, "context deadline exceeded", err.Error())
+		assert.Contains(t, err.Error(), "/dir: not a directory")
 	})
 }
 
