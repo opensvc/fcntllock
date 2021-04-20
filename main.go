@@ -2,9 +2,11 @@ package fcntllock
 
 import (
 	"context"
+	"errors"
 	"github.com/opensvc/locker"
 	"io"
 	"os"
+	"path/filepath"
 	"syscall"
 	"time"
 )
@@ -25,6 +27,10 @@ type (
 	}
 )
 
+var (
+	lockDirPerm os.FileMode = 0700
+)
+
 // New create a new fcntl lock
 func New(path string) Locker {
 	return &Lock{
@@ -34,6 +40,9 @@ func New(path string) Locker {
 
 // TryLock acquires an exclusive write file lock (non blocking)
 func (lck *Lock) TryLock() error {
+	if err := createLockDir(lck.path); err != nil {
+		return err
+	}
 	return lck.lock(false)
 }
 
@@ -52,6 +61,9 @@ func (lck Lock) UnLock() (err error) {
 
 // LockContext repeat TryLock with retry delay until succeed or context Done
 func (lck *Lock) LockContext(ctx context.Context, retryDelay time.Duration) error {
+	if err := createLockDir(lck.path); err != nil {
+		return err
+	}
 	return lck.try(ctx, lck.TryLock, retryDelay)
 }
 
@@ -100,4 +112,19 @@ func (lck *Lock) try(ctx context.Context, fn func() error, retryDelay time.Durat
 			// will try again fn()
 		}
 	}
+}
+
+func createLockDir(path string) (err error) {
+	dir := filepath.Dir(path)
+	info, err := os.Stat(dir)
+	if err == nil {
+		if info.IsDir() {
+			return
+		}
+		return errors.New("already exists and is not directory: " + dir)
+	}
+	if os.IsNotExist(err) {
+		return os.MkdirAll(dir, lockDirPerm)
+	}
+	return err
 }
