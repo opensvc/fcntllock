@@ -1,3 +1,4 @@
+// Package fcntllock provides simple whole file lock methods based on fcntl
 package fcntllock
 
 import (
