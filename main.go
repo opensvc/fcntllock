@@ -1,3 +1,6 @@
+// Package fcntllock provides simple whole file lock methods based on fcntl
+//
+// Lock functions create lock directory if absent
 package fcntllock
 
 import (
