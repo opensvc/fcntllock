@@ -55,6 +55,43 @@ func TestLockContext(t *testing.T) {
 	})
 }
 
+func TestTryLock(t *testing.T) {
+	t.Run("lockfile is created", func(t *testing.T) {
+		lockfile, tfCleanup := testhelper.TempFile(t)
+		defer tfCleanup()
+		l := fcntllock.New(lockfile)
+		err := l.TryLock()
+		require.Equal(t, nil, err)
+		_, err = os.Stat(lockfile)
+		require.Nil(t, err)
+	})
+
+	t.Run("create missing lock dir", func(t *testing.T) {
+		lockDir, cleanup := testhelper.Tempdir(t)
+		defer cleanup()
+		l := fcntllock.New(filepath.Join(lockDir, "dir", "lck"))
+		err := l.TryLock()
+		require.Nil(t, err)
+	})
+
+	t.Run("fail fast if can't create lock dir", func(t *testing.T) {
+		tf, cleanup := testhelper.TempFile(t)
+		defer cleanup()
+		l := fcntllock.New(filepath.Join(tf, "dir", "lck"))
+		err := l.TryLock()
+		require.NotNil(t, err)
+		require.Contains(t, err.Error(), "/dir: not a directory")
+	})
+
+	t.Run("succeed", func(t *testing.T) {
+		lockDir, cleanup := testhelper.Tempdir(t)
+		defer cleanup()
+		l := fcntllock.New(filepath.Join(lockDir, "dir", "lck"))
+		err := l.TryLock()
+		require.Nil(t, err)
+	})
+}
+
 func TestUnLock(t *testing.T) {
 	t.Run("Ensure unlock (fcntl lock) succeed even if file is not locked", func(t *testing.T) {
 		lockfile, tfCleanup := testhelper.TempFile(t)
