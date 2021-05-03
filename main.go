@@ -100,9 +100,6 @@ func (lck *Lock) lock(blocking bool) (err error) {
 }
 
 func (lck *Lock) try(ctx context.Context, fn func() error, retryDelay time.Duration) error {
-	if err := ctx.Err(); err != nil {
-		return err
-	}
 	for {
 		if err := fn(); err == nil {
 			return nil
