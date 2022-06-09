@@ -2,13 +2,14 @@ package fcntllock_test
 
 import (
 	"context"
-	"github.com/opensvc/fcntllock"
-	"github.com/opensvc/testhelper"
-	"github.com/stretchr/testify/require"
 	"os"
 	"path/filepath"
 	"testing"
 	"time"
+
+	"github.com/opensvc/fcntllock"
+	"github.com/opensvc/testhelper"
+	"github.com/stretchr/testify/require"
 )
 
 func TestLockContext(t *testing.T) {
@@ -42,6 +43,15 @@ func TestLockContext(t *testing.T) {
 		err := l.LockContext(ctx, 5*time.Millisecond)
 		require.NotNil(t, err)
 		require.Contains(t, err.Error(), "/dir: not a directory")
+	})
+
+	t.Run("fail fast on perm error", func(t *testing.T) {
+		p := "/root/foo"
+		l := fcntllock.New(p)
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Millisecond)
+		defer cancel()
+		err := l.LockContext(ctx, 5*time.Millisecond)
+		require.ErrorIs(t, err, os.ErrPermission)
 	})
 
 	t.Run("LockContext give at least one try lock even if context is already Done", func(t *testing.T) {

@@ -6,12 +6,13 @@ package fcntllock
 import (
 	"context"
 	"errors"
-	"github.com/opensvc/locker"
 	"io"
 	"os"
 	"path/filepath"
 	"syscall"
 	"time"
+
+	"github.com/opensvc/locker"
 )
 
 type (
@@ -103,6 +104,9 @@ func (lck *Lock) try(ctx context.Context, fn func() error, retryDelay time.Durat
 	for {
 		if err := fn(); err == nil {
 			return nil
+		} else if serr, ok := err.(syscall.Errno); !ok || (serr != syscall.EAGAIN) {
+			// return immediately
+			return err
 		}
 		select {
 		case <-ctx.Done():
