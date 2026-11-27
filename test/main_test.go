@@ -55,6 +55,11 @@ func TestLockContext(t *testing.T) {
 
 	for _, p := range []string{"/root/foo", "/var/.no-such-fcntllock-file"} {
 		t.Run("fail fast on perm error and verify duration for file "+p, func(t *testing.T) {
+			if os.Geteuid() == 0 {
+				// root is not refused the files a user is: the
+				// lock would succeed, or fail on another error.
+				t.Skip("root bypasses the file permissions")
+			}
 			l := fcntllock.New(p)
 			t1 := time.Now()
 			ctx, cancel := context.WithTimeout(context.Background(), 150*time.Millisecond)
