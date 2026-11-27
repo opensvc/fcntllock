@@ -55,6 +55,11 @@ func TestLockContext(t *testing.T) {
 
 	for _, p := range []string{"/root/foo", "/var/.no-such-fcntllock-file"} {
 		t.Run("fail fast on perm error and verify duration for file "+p, func(t *testing.T) {
+			if os.Geteuid() == 0 {
+				// root is not refused the files a user is: the
+				// lock would succeed, or fail on another error.
+				t.Skip("root bypasses the file permissions")
+			}
 			l := fcntllock.New(p)
 			t1 := time.Now()
 			ctx, cancel := context.WithTimeout(context.Background(), 150*time.Millisecond)
@@ -181,6 +186,94 @@ func TestTryLock(t *testing.T) {
 	})
 }
 
+func TestTryRLock(t *testing.T) {
+	newLock := func(t *testing.T) (*fcntllock.Lock, string) {
+		lockfile, tfCleanup := testhelper.TempFile(t)
+		t.Cleanup(tfCleanup)
+		return fcntllock.New(lockfile).(*fcntllock.Lock), lockfile
+	}
+
+	t.Run("lockfile is created", func(t *testing.T) {
+		lockDir, cleanup := testhelper.Tempdir(t)
+		defer cleanup()
+		lockfile := filepath.Join(lockDir, "dir", "lck")
+		l := fcntllock.New(lockfile).(*fcntllock.Lock)
+		require.NoError(t, l.TryRLock())
+		_, err := os.Stat(lockfile)
+		require.NoError(t, err)
+	})
+
+	t.Run("shared with another process holding a shared lock", func(t *testing.T) {
+		l, lockfile := newLock(t)
+		forkCmd := lockInFork("TryRLock", lockfile)
+		require.NoError(t, forkCmd.Start())
+		time.Sleep(50 * time.Millisecond)
+		require.NoError(t, l.TryRLock())
+		require.NoError(t, forkCmd.Wait())
+	})
+
+	t.Run("refused while another process holds an exclusive lock", func(t *testing.T) {
+		l, lockfile := newLock(t)
+		forkCmd := lockInFork("TryLock", lockfile)
+		require.NoError(t, forkCmd.Start())
+		time.Sleep(50 * time.Millisecond)
+		require.Error(t, l.TryRLock())
+		require.NoError(t, forkCmd.Wait())
+	})
+
+	t.Run("an exclusive lock refused while another process holds a shared lock", func(t *testing.T) {
+		l, lockfile := newLock(t)
+		forkCmd := lockInFork("TryRLock", lockfile)
+		require.NoError(t, forkCmd.Start())
+		time.Sleep(50 * time.Millisecond)
+		require.Error(t, l.TryLock())
+		require.NoError(t, forkCmd.Wait())
+	})
+
+	t.Run("a shared lock refuses an exclusive lock to another process", func(t *testing.T) {
+		l, lockfile := newLock(t)
+		require.NoError(t, l.TryRLock())
+		forkCmd := lockInFork("TryLock", lockfile)
+		require.Error(t, forkCmd.Run(), "the exclusive lock of another process is refused")
+		forkCmd = lockInFork("TryRLock", lockfile)
+		require.NoError(t, forkCmd.Run(), "the shared lock of another process is granted")
+	})
+
+	t.Run("a shared lock converted to an exclusive one", func(t *testing.T) {
+		l, lockfile := newLock(t)
+		require.NoError(t, l.TryRLock())
+		require.NoError(t, l.TryLock(), "no other process holds a lock")
+		forkCmd := lockInFork("TryRLock", lockfile)
+		require.Error(t, forkCmd.Run(), "the shared lock of another process is refused")
+	})
+
+	t.Run("a conversion refused keeps the shared lock", func(t *testing.T) {
+		l, lockfile := newLock(t)
+		require.NoError(t, l.TryRLock())
+		forkCmd := lockInFork("TryRLock", lockfile)
+		require.NoError(t, forkCmd.Start())
+		time.Sleep(50 * time.Millisecond)
+		require.Error(t, l.TryLock(), "another process holds a shared lock")
+		require.NoError(t, forkCmd.Wait())
+
+		// The shared lock is held still: another process is refused an
+		// exclusive lock.
+		forkCmd = lockInFork("TryLock", lockfile)
+		require.Error(t, forkCmd.Run())
+	})
+
+	t.Run("RLockContext waits for an exclusive lock released", func(t *testing.T) {
+		l, lockfile := newLock(t)
+		forkCmd := lockInFork("TryLock", lockfile)
+		require.NoError(t, forkCmd.Start())
+		time.Sleep(50 * time.Millisecond)
+		ctx, cancel := context.WithTimeout(context.Background(), 300*time.Millisecond)
+		defer cancel()
+		require.NoError(t, l.RLockContext(ctx, 10*time.Millisecond))
+		require.NoError(t, forkCmd.Wait())
+	})
+}
+
 func TestUnLock(t *testing.T) {
 	t.Run("Ensure unlock (fcntl lock) succeed even if file is not locked", func(t *testing.T) {
 		lockfile, tfCleanup := testhelper.TempFile(t)
@@ -223,6 +316,14 @@ func TestHelperProcess(t *testing.T) {
 	switch {
 	case cmd == "TryLock":
 		err := lock.TryLock()
+		if err != nil {
+			exitCode = 1
+		} else {
+			time.Sleep(102 * time.Millisecond)
+			return
+		}
+	case cmd == "TryRLock":
+		err := lock.(*fcntllock.Lock).TryRLock()
 		if err != nil {
 			exitCode = 1
 		} else {
