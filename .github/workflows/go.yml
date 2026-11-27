@@ -9,18 +9,19 @@ on:
 jobs:
 
   build:
-    runs-on: ubuntu-latest
     strategy:
+      fail-fast: false
       matrix:
-        go: [ '1.16', '1.13' ]
-    name: Go ${{ matrix.go }} sample
+        os: [ ubuntu-latest, macos-latest ]
+    runs-on: ${{ matrix.os }}
+    name: Go on ${{ matrix.os }}
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v7
 
     - name: Set up Go
-      uses: actions/setup-go@v2
+      uses: actions/setup-go@v7
       with:
-        go-version: ${{ matrix.go }}
+        go-version-file: go.mod
 
     - name: Build
       run: go build -v ./...
